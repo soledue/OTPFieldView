@@ -55,8 +55,7 @@ import UIKit
 @objc public class OTPFieldView: UIView {
     
     /// Different display type for text fields.
-    
-    
+    var currentKeyboard: UIKeyboardType = .default
     public var displayType: DisplayType = .circular
     public var fieldsCount: Int = 4
     public var otpInputType: KeyboardType = .numeric
@@ -66,6 +65,7 @@ import UIKit
     public var requireCursor: Bool = true
     public var cursorColor: UIColor = UIColor.blue
     public var fieldSize: CGFloat = 60
+    public var deltaDistanceForSeparator: CGFloat = 0 //added to support smaller fields and avoiding overlaying on small characters
     public var separatorSpace: CGFloat = 16
     public var fieldBorderWidth: CGFloat = 1
     public var shouldAllowIntermediateEditing: Bool = true
@@ -74,7 +74,10 @@ import UIKit
     public var defaultBorderColor: UIColor = UIColor.gray
     public var filledBorderColor: UIColor = UIColor.clear
     public var errorBorderColor: UIColor?
-    
+    public var editedOTPString = ""
+    private var nrIntex = 0
+    private var isValidString = false
+    public var isVinEdited: Bool?
     public weak var delegate: OTPFieldViewDelegate?
     
     fileprivate var secureEntryData = [String]()
@@ -105,7 +108,20 @@ import UIKit
             let otpField = getOTPField(forIndex: index)
             addSubview(otpField)
             
-            secureEntryData.append("")
+            if isVinEdited == true && editedOTPString != "" {
+                let indexStr = editedOTPString.index(editedOTPString.startIndex, offsetBy: index)
+                let charAtIndex = editedOTPString[indexStr]
+                if nrIntex == index {
+                    otpField.text = String(charAtIndex)
+                    secureEntryData.append(String(charAtIndex))
+
+                }
+                nrIntex += 1
+                calculateEnteredOTPSTring(isDeleted: false)
+                
+            } else {
+                secureEntryData.append("")
+            }
         }
     }
     
@@ -153,6 +169,8 @@ import UIKit
         // Set the default background color when text not set
         otpField.backgroundColor = defaultBackgroundColor
         
+        otpField.deltaDistanceForSeparator = deltaDistanceForSeparator
+        
         // Finally create the fields
         otpField.initalizeUI(forFieldType: displayType)
         
@@ -177,6 +195,7 @@ import UIKit
             
             if let nextOTPField = nextOTPField {
                 isTextFilled = (nextOTPField == textField || (textField.tag) == (nextOTPField.tag - 1))
+                nextOTPField.keyboardType = currentKeyboard
             }
         }
         
@@ -218,11 +237,17 @@ import UIKit
                 }
             }
             
-            if enteredOTPString.count == fieldsCount {
+            if enteredOTPString.count == fieldsCount || editedOTPString.count == fieldsCount{
                 delegate?.enteredOTP(otp: enteredOTPString)
                 
                 // Check if all OTP fields have been filled or not. Based on that call the 2 delegate methods.
-                let isValid = delegate?.hasEnteredAllOTP(hasEnteredAll: (enteredOTPString.count == fieldsCount)) ?? false
+                if enteredOTPString.last != " " || editedOTPString.last != " " {
+                    isValidString = true
+                } else {
+                    isValidString = false
+                }
+                
+                let isValid = delegate?.hasEnteredAllOTP(hasEnteredAll: (isValidString)) ?? false
                 
                 // Set the error state for invalid otp entry
                 for index in stride(from: 0, to: fieldsCount, by: 1) {
@@ -240,6 +265,9 @@ import UIKit
                         otpField?.layer.borderColor = filledBorderColor.cgColor
                     }
                 }
+            } else {
+                
+                isValidString = false
             }
         }
     }
@@ -262,6 +290,12 @@ extension OTPFieldView: UITextFieldDelegate {
         // Check since only alphabet keyboard is not available in iOS
         if !replacedText.isEmpty && otpInputType == .alphabet && replacedText.rangeOfCharacter(from: .letters) == nil {
             return false
+        }
+        if !replacedText.isEmpty && otpInputType == .alphaNumeric {
+            currentKeyboard = replacedText.rangeOfCharacter(from: .letters) == nil  ? .numbersAndPunctuation : .default
+            if replacedText.rangeOfCharacter(from: .punctuationCharacters ) != nil || replacedText.rangeOfCharacter(from: .symbols ) != nil || string == " " {
+                return false
+            }
         }
         
         if replacedText.count >= 1 {

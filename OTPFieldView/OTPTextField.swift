@@ -40,6 +40,8 @@ import UIKit
     
     public var shapeLayer: CAShapeLayer!
     
+    public var deltaDistanceForSeparator: CGFloat = 0
+
     override func awakeFromNib() {
         super.awakeFromNib()
     }
@@ -116,8 +118,8 @@ import UIKit
     // Helper function to create a underlined bottom view
     fileprivate func addBottomView() {
         let path = UIBezierPath()
-        path.move(to: CGPoint(x: 0, y: bounds.size.height))
-        path.addLine(to: CGPoint(x: bounds.size.width, y: bounds.size.height))
+        path.move(to: CGPoint(x: 0, y: bounds.size.height + deltaDistanceForSeparator))
+        path.addLine(to: CGPoint(x: bounds.size.width, y: bounds.size.height + deltaDistanceForSeparator))
         path.close()
         
         shapeLayer = CAShapeLayer()
